@@ -1,0 +1,8 @@
+__pycache__/
+.venv/
+data/*
+!data/.gitkeep
+results/*
+!results/.gitkeep
+*.npy
+*.sqlite

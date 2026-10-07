@@ -1,0 +1,15 @@
+from dataclasses import dataclass, asdict
+
+@dataclass
+class Counters:
+    """Every retriever MUST report cost through this object.
+    Cue checks (cheap) and embedding comparisons (expensive) are kept separate."""
+    cue_checks: int = 0
+    embedding_comparisons: int = 0
+    nodes_visited: int = 0
+    llm_calls: int = 0          # must stay 0 for the proposed method
+    fallback_triggered: bool = False
+    latency_ms: float = 0.0
+
+    def to_dict(self) -> dict:
+        return asdict(self)

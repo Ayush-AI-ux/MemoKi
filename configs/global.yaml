@@ -1,0 +1,16 @@
+# Single source of truth for every experiment (Gap 4 protocol).
+# Every method reads this file; nothing is hard-coded elsewhere.
+embedding_model: sentence-transformers/all-MiniLM-L6-v2
+embedding_dim: 384
+top_k: 5
+seeds: [11, 22, 33, 44, 55]     # 3-5 repeats, mean +/- std
+store_sizes: [100, 500, 1000, 5000, 10000]
+split: {validation: 0.3, test: 0.7}   # tune on validation ONLY
+hardware_note: "fill in: CPU model, RAM, OS"
+tree:
+  max_children: 8        # node splits when exceeded (keeps tree balanced)
+  beam_width: 3
+  fallback_tau: 0.35     # tuned on validation split
+recency:
+  delta: 0.02            # tuned on validation split
+  lam: 0.05              # tuned on validation split

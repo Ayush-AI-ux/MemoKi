@@ -1,0 +1,14 @@
+# Data-pipeline settings (kept separate so global.yaml edits are not overwritten)
+paths:
+  raw_dir: data/raw
+  cache_dir: data/cache
+  longmemeval: data/raw/longmemeval_s_cleaned.json      # full haystack (large)
+  longmemeval_oracle: data/raw/longmemeval_oracle.json  # evidence-only (small, for dev)
+  locomo: data/raw/locomo10.json
+  splits: data/splits.json
+max_seq_length: 256          # MiniLM truncates beyond this; same for ALL methods
+query_seed: 0                # fixes the query set across every store size
+n_queries: 40                # queries per store; same set for all sizes
+max_evidence_per_query: 2    # keeps the 100-size store feasible
+val_frac: 0.3                # validation split; thresholds tuned here ONLY
+split_seed: 0
