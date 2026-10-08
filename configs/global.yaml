@@ -8,7 +8,8 @@ store_sizes: [100, 500, 1000, 5000, 10000]
 split: {validation: 0.3, test: 0.7}   # tune on validation ONLY
 hardware_note: "fill in: CPU model, RAM, OS"
 tree:
-  max_children: 8        # node splits when exceeded (keeps tree balanced)
+  max_children: 32       # frozen by tree_sweep on the validation split
+  min_fill: 0.35         # frozen: every split node keeps at least ceil(0.35 * (B+1)) children
   beam_width: 3
   fallback_tau: 0.35     # tuned on validation split
 recency:

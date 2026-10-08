@@ -16,6 +16,7 @@ def main():
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--procs", type=int, default=1)
     ap.add_argument("--size", type=int, default=None)
+    ap.add_argument("--all", action="store_true", help="extract for the WHOLE pool (about 19k sessions)")
     a = ap.parse_args()
     cfg = load_all(); d = cfg["data"]
     pool, queries = load_longmemeval(path(cfg, "longmemeval"))
@@ -23,7 +24,7 @@ def main():
     qs = select_queries(queries, splits["test"], set(pool), d["n_queries"],
                         d["max_evidence_per_query"], d["query_seed"])
     size = a.size or max(cfg["store_sizes"])
-    store = build_store(pool, qs, size, seed=cfg["seeds"][0])
+    store = [pool[i] for i in sorted(pool)] if a.all else build_store(pool, qs, size, seed=cfg["seeds"][0])
     ner = SpacyNER(n_process=a.procs)
     extract_entities_cached(store, ner, ROOT / d["paths"]["cache_dir"], limit=a.limit)
     have = [len(c.cues["entities"]) for c in store if "entities" in c.cues]
