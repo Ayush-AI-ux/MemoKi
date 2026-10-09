@@ -9,6 +9,9 @@ class Counters:
     nodes_visited: int = 0
     llm_calls: int = 0          # must stay 0 for the proposed method
     fallback_triggered: bool = False
+    levels_relaxed: int = 0     # levels where no child matched the cues, so cue pruning was skipped
+    prep_ms: float = 0.0        # cost of query preparation (entity extraction, date parsing), reported separately
+    prep_spent_ms: float = 0.0  # time actually spent preparing in THIS call (0 on a cache hit); subtracted from latency
     latency_ms: float = 0.0
 
     def to_dict(self) -> dict:

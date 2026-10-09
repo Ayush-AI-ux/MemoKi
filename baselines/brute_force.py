@@ -10,7 +10,7 @@ class BruteForce(Retriever):
         m = np.stack([c.embedding for c in conversations]).astype("float32")
         self.matrix = m / np.linalg.norm(m, axis=1, keepdims=True)
 
-    def _retrieve(self, query_text, query_emb, k, counters):
+    def _retrieve(self, query_text, query_emb, k, counters, query_ts=None):
         q = query_emb / np.linalg.norm(query_emb)
         sims = self.matrix @ q
         counters.embedding_comparisons += len(self.ids)   # every item compared

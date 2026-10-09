@@ -1,6 +1,9 @@
 """Cue extraction. Cues are plain data, kept separate from the tree so that
 ablations (Gap 4) can switch each cue on/off without touching tree code."""
 import re
+from dataclasses import dataclass
+from typing import Optional
+from .timecue import TimeWindow
 
 NORM_VERSION = "v1"   # bump if normalisation changes: invalidates cached entities
 NAMED_LABELS = frozenset({"PERSON", "ORG", "GPE", "LOC", "FAC", "PRODUCT",
@@ -45,3 +48,15 @@ class SpacyNER:
             ents = {normalize_entity(e.text) for e in d.ents if e.label_ in NAMED_LABELS}
             out.append(frozenset(ents - {""}))
         return out
+
+
+@dataclass(frozen=True)
+class QueryCues:
+    """Cues found in ONE query. entities: normalised names. window: resolved date window or None."""
+    entities: frozenset = frozenset()
+    window: Optional[TimeWindow] = None
+    slack_days: float = 7.0
+
+    @property
+    def active(self) -> bool:
+        return bool(self.entities) or self.window is not None

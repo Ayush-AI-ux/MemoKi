@@ -14,5 +14,5 @@ class CentroidTree(Retriever):
         for c in conversations:                 # insertion order = store order (seeded, deterministic)
             self.tree.insert(c.id, c.embedding)
 
-    def _retrieve(self, query_text, query_emb, k, counters):
+    def _retrieve(self, query_text, query_emb, k, counters, query_ts=None):
         return [Result(i, s) for i, s in self.tree.search(query_emb, k, self.beam, counters)]
