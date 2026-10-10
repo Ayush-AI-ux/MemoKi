@@ -1,4 +1,4 @@
-﻿"""Do named-entity cues find the right conversation, and how much do they prune?
+"""Do named-entity cues find the right conversation, and how much do they prune?
 Run: python -m eval.cue_selectivity"""
 import re, random, time
 import numpy as np, spacy
@@ -17,7 +17,7 @@ def norm(s):
 cfg = load_all(); d = cfg["data"]
 pool, queries = load_longmemeval(path(cfg, "longmemeval"))
 splits = load_splits(path(cfg, "splits"))
-qs = select_queries(queries, splits["test"], set(pool), 100, d["max_evidence_per_query"], d["query_seed"])
+qs = select_queries(queries, splits["validation"], set(pool), 100, d["max_evidence_per_query"], d["query_seed"])
 ev = sorted({r for q in qs for r in q.relevant_ids})
 others = sorted(i for i in pool if i not in set(ev))
 random.Random(0).shuffle(others)
