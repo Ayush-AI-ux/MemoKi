@@ -437,17 +437,6 @@ pytest --tb=short
 
 ---
 
-## Team
-
-This project is developed collaboratively as a **Semester 7 Research Project**.
-
-| Contributor | GitHub                                           |
-|-------------|--------------------------------------------------|
-| Ayush       | [@Ayush-AI-ux](https://github.com/Ayush-AI-ux) |
-| Parth       | [@Parthgarg27](https://github.com/Parthgarg27)   |
-
----
-
 ## License
 
 This project is for academic and research purposes.  
@@ -456,3 +445,5 @@ Dataset usage is subject to the respective dataset licenses (LongMemEval, LoCoMo
 ---
 
 *MemoKi — giving LLMs the gift of episodic memory, one conversation at a time.*
+
+
