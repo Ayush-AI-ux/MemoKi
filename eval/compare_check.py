@@ -50,6 +50,7 @@ def main(encode_fn=None, ner=None):
     ap.add_argument("--efs", type=int, nargs="+", default=[16, 64, 128])
     ap.add_argument("--beams", type=int, nargs="+", default=[3, 10, 20])
     ap.add_argument("--csv", default=None, help="also save every row to this CSV file")
+    ap.add_argument("--audit-margin", type=float, default=None, help="also evaluate trees after one offline audit/re-filing pass with this margin")
     a = ap.parse_args()
     cfg = load_all(); d = cfg["data"]
     pool, queries = load_longmemeval(path(cfg, "longmemeval"))
@@ -83,6 +84,13 @@ def main(encode_fn=None, ner=None):
         cue = CueTree(B, 3, MF, True, True, False, 0.35, slack, ner)
         hyb = HybridCueHNSW(True, True, slack, ner, 32, 64, 64)
         for m in (bf, ff, hn, flat, hyb, nocue, cue): m.build(store)
+        cue_a = nocue_a = None
+        if a.audit_margin is not None:
+            cue_a = CueTree(B, 3, MF, True, True, False, 0.35, slack, ner); cue_a.build(store)
+            nocue_a = CentroidTree(B, 10, MF); nocue_a.build(store)
+            for t in (cue_a, nocue_a):
+                st = t.tree.audit_refile(a.audit_margin, 1)
+            print(f"  (audit margin {a.audit_margin}: re-filed {len(st['moved'])} of {len(store)} leaves, offline)")
         active = np.array([cue.prepare(q.text, q.timestamp)[0].active for q in qs])
         print(f"\nsize {size} | queries with a usable cue: {active.sum()}/{len(qs)}")
         print(f"  {'method':<24}{'R@5':>7}{'cue q':>8}{'oth q':>8}{'comps':>8}{'cue q':>8}{'oth q':>8}{'cue-chk':>8}{'prep':>7}{'search':>8}{'e2e':>8}")
@@ -97,17 +105,28 @@ def main(encode_fn=None, ner=None):
             nocue.beam = beam; res[f"tree no cues b={beam}"] = run(nocue, qs, k)
         for beam in a.beams:
             cue.beam = beam; res[f"CUE TREE b={beam}"] = run(cue, qs, k)
+        if cue_a is not None:
+            for beam in a.beams:
+                nocue_a.beam = cue_a.beam = beam
+                res[f"tree no cues + audit b={beam}"] = run(nocue_a, qs, k)
+                res[f"CUE TREE + audit b={beam}"] = run(cue_a, qs, k)
         for label, r in res.items():
             show(label, r, active, size, rows)
         if size == max(a.sizes):
-            mine = res[f"CUE TREE b={10 if 10 in a.beams else a.beams[0]}"]
-            opponents = ("brute force", "hnsw ef=64", "flat + cue filter", "filter + hnsw ef=64", "filter + hnsw ef=16", "tree no cues b=10")
-            for title, mask in (("ALL queries", np.ones(len(qs), dtype=bool)), ("queries WITH a usable cue", active)):
-                print(f"\npaired exact test at size {size}, {title} (n={int(mask.sum())}): cue tree vs each opponent")
-                for name in opponents:
-                    if name in res:
-                        ao, bo, p = sign_test(mine["hit"][mask], res[name]["hit"][mask])
-                        print(f"  vs {name:<22} cue tree only {ao:>3} | opponent only {bo:>3} | p = {p:.3f}")
+            def paired(mine_name, opponents):
+                if mine_name not in res:
+                    return
+                mine = res[mine_name]
+                for title, mask in (("ALL queries", np.ones(len(qs), dtype=bool)), ("queries WITH a usable cue", active), ("queries WITHOUT a cue", ~active)):
+                    print(f"\npaired exact test at size {size}, {title} (n={int(mask.sum())}): {mine_name} vs each opponent")
+                    for name in opponents:
+                        if name in res:
+                            ao, bo, p = sign_test(mine["hit"][mask], res[name]["hit"][mask])
+                            print(f"  vs {name:<26} mine only {ao:>3} | opponent only {bo:>3} | p = {p:.3f}")
+            b10 = 10 if 10 in a.beams else a.beams[0]
+            paired(f"CUE TREE b={b10}", ("brute force", "hnsw ef=64", "flat + cue filter", "filter + hnsw ef=64", "filter + hnsw ef=16", f"tree no cues b={b10}"))
+            paired(f"CUE TREE + audit b={b10}", (f"CUE TREE b={b10}", "brute force", "hnsw ef=64", "filter + hnsw ef=16", "filter + hnsw ef=64"))
+            paired(f"tree no cues + audit b={b10}", (f"tree no cues b={b10}", "hnsw ef=16", "hnsw ef=64"))
 
     if a.csv and rows:
         import csv

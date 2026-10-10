@@ -57,6 +57,7 @@ class MemoryTree:
         self.build_comparisons = 0
         self._uid = 0
         self._flat = None                # cached matrix of all leaves (for the flat fallback)
+        self._eindex = None              # cached entity -> leaves index (for the entity-lookup recovery)
 
     def _node(self, **kw):
         self._uid += 1
@@ -70,6 +71,7 @@ class MemoryTree:
         leaf = self._node(is_leaf=True, conv_id=conv_id, vec=e, ents=frozenset(entities), ts=float(timestamp))
         self.leaves[conv_id] = leaf
         self._flat = None
+        self._eindex = None
         if self.root is None:
             self.root = self._node()
             self.root.sum, self.root.vec = np.zeros_like(leaf.sum), e.copy()
@@ -206,6 +208,121 @@ class MemoryTree:
         counters.nodes_visited += len(ids)
         top = np.argsort(-sims, kind="stable")[:k]
         return [(ids[i], float(sims[i])) for i in top]
+
+    # ------------------------------------------------- misfiling support (Gap 2)
+    def leaf_parents(self):
+        """Internal nodes whose children are leaves (where a conversation is 'filed')."""
+        out, stack = [], [self.root] if self.root else []
+        while stack:
+            n = stack.pop()
+            if n.children and n.children[0].is_leaf:
+                out.append(n)
+            else:
+                stack.extend(reversed(n.children))
+        return sorted(out, key=lambda n: n.uid)
+
+    def top_branch(self, node):
+        """The child of the root that contains `node` (the node itself if it is the root)."""
+        while node.parent is not None and node.parent is not self.root:
+            node = node.parent
+        return node
+
+    def move_leaves(self, moves):
+        """Batch re-filing: moves = [(conv_id, target_leaf_parent)]. Used to simulate misfiling.
+        Structure only changes at the leaf level (depth stays uniform); empty nodes are removed and every
+        affected ancestor is recomputed ONCE, so centroids, entity unions and date spans stay truthful.
+        A target may end up with more than max_children children (reported, not fixed)."""
+        touched = set()
+        for cid, target in moves:
+            leaf = self.leaves[cid]
+            old = leaf.parent
+            if old is target:
+                continue
+            old.children.remove(leaf)
+            target.children.append(leaf)
+            leaf.parent = target
+            touched.update((old, target))
+        work = set()
+        for n in touched:
+            while n is not None:
+                work.add(n); n = n.parent
+        def depth(n):
+            d = 0
+            while n.parent is not None:
+                n, d = n.parent, d + 1
+            return d
+        for n in sorted(work, key=depth, reverse=True):          # deepest first
+            if not n.children and n is not self.root:
+                n.parent.children.remove(n)
+            else:
+                n.refresh()
+        self._flat = None
+
+    def audit_refile(self, margin=0.05, rounds=1):
+        """Offline repair. A leaf is re-filed when another leaf-group's centroid is closer to it than
+        its OWN group's centroid computed WITHOUT it, by more than `margin` (cosine). Runs once, offline:
+        it costs (leaves x leaf-groups) comparisons and adds nothing at query time. Returns statistics."""
+        stats = {"moved": [], "comparisons": 0}
+        for _ in range(rounds):
+            parents = self.leaf_parents()
+            if len(parents) < 2:
+                break
+            P = np.stack([p.vec for p in parents])
+            pos = {p.uid: i for i, p in enumerate(parents)}
+            leaves = list(self.leaves.values())
+            S = np.stack([l.vec for l in leaves]) @ P.T
+            stats["comparisons"] += S.size
+            moves = []
+            for r, leaf in enumerate(leaves):
+                own = leaf.parent; i = pos[own.uid]
+                if len(own.children) > 1:
+                    S[r, i] = float(_unit(own.sum - leaf.sum).astype(np.float32) @ leaf.vec)   # leave-one-out
+                else:
+                    S[r, i] = 1.0                                   # a one-leaf group is never 'wrong'
+                j = int(np.argmax(S[r]))
+                if j != i and S[r, j] - S[r, i] > margin:
+                    moves.append((leaf.conv_id, parents[j]))
+            if not moves:
+                break
+            self.move_leaves(moves)
+            stats["moved"].extend(c for c, _ in moves)
+        return stats
+
+    def _entity_index(self):
+        if self._eindex is None:
+            idx = {}
+            for leaf in self.leaves.values():
+                for e in leaf.ents:
+                    idx.setdefault(e, []).append(leaf)
+            self._eindex = idx
+        return self._eindex
+
+    def entity_flat_search(self, query, k, counters, qcues):
+        """Recovery tier B: look the query's entities up in a flat entity index (and apply the date
+        window), then score only those candidates exactly. Returns [] if the query has no entity or
+        nothing matches (so the caller keeps its original answer)."""
+        if self.root is None or not qcues.entities:
+            return []
+        counters.cue_checks += len(qcues.entities)
+        cands = {}
+        for e in qcues.entities:
+            for leaf in self._entity_index().get(e, ()):
+                cands[leaf.uid] = leaf
+        if qcues.window is not None:
+            kept = {}
+            for u, leaf in cands.items():
+                counters.cue_checks += 1
+                if window_overlaps(leaf.tmin, leaf.tmax, qcues.window, qcues.slack_days):
+                    kept[u] = leaf
+            cands = kept
+        if not cands:
+            return []
+        leaves = [cands[u] for u in sorted(cands)]
+        sims = np.stack([l.vec for l in leaves]) @ _unit(np.asarray(query, dtype=np.float32))
+        counters.embedding_comparisons += len(leaves)
+        counters.nodes_visited += len(leaves)
+        top = np.argsort(-sims, kind="stable")[:k]
+        return [(leaves[i].conv_id, float(sims[i])) for i in top]
 
     # ----------------------------------------------------------------- inspection
     def iter_leaves(self):

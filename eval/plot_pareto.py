@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 
 FAMILIES = [("brute force", "brute force", "k", "s"), ("hnsw ef", "HNSW", "tab:blue", "o"),
             ("filter + hnsw", "metadata filter + HNSW", "tab:green", "^"), ("flat + cue filter", "flat + cue filter", "tab:olive", "D"),
-            ("tree no cues", "tree, no cues", "tab:gray", "v"), ("CUE TREE", "CUE TREE (proposed)", "tab:red", "*")]
+            ("tree no cues + audit", "tree, no cues + audit", "tab:purple", "P"), ("tree no cues", "tree, no cues", "tab:gray", "v"),
+            ("CUE TREE + audit", "CUE TREE + audit", "tab:orange", "X"), ("CUE TREE", "CUE TREE (proposed)", "tab:red", "*")]
 
 def family(name):
     if name == "faiss flat":
