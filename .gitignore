@@ -6,3 +6,4 @@ results/*
 !results/.gitkeep
 *.npy
 *.sqlite
+.venv-mem/
