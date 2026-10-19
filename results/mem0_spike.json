@@ -1,0 +1,64 @@
+{
+ "slice": {
+  "conv": "conv-26",
+  "sessions": 1,
+  "turns": 18,
+  "adds": 1,
+  "granularity": "session"
+ },
+ "model": "llama3.2:3b",
+ "failed_adds": 0,
+ "adds": [
+  {
+   "calls": 1,
+   "seconds": 74.67018169997027,
+   "prompt_tokens": 2050,
+   "output_tokens": 193,
+   "wall": 75.23618229996646,
+   "turns": 18,
+   "chars_sent": 38509,
+   "options": {
+    "temperature": 0.0,
+    "num_predict": 1024,
+    "top_p": 0.1
+   }
+  }
+ ],
+ "ingest_wall_s": 75.23645590001252,
+ "searches": [
+  {
+   "llm_calls": 0,
+   "wall": 0.03953980002552271,
+   "memories": 5,
+   "raw_returned": 5,
+   "approx_tokens": 123.25
+  },
+  {
+   "llm_calls": 0,
+   "wall": 0.03606200002832338,
+   "memories": 4,
+   "raw_returned": 4,
+   "approx_tokens": 99.5
+  },
+  {
+   "llm_calls": 0,
+   "wall": 0.03298360004555434,
+   "memories": 5,
+   "raw_returned": 5,
+   "approx_tokens": 123.25
+  },
+  {
+   "llm_calls": 0,
+   "wall": 0.028511199983768165,
+   "memories": 5,
+   "raw_returned": 5,
+   "approx_tokens": 123.25
+  }
+ ],
+ "extrapolated": {
+  "calls": 326.77777777777777,
+  "seconds": 24585.512460466816,
+  "prompt_tokens": 669894.4444444444,
+  "output_tokens": 63068.11111111111
+ }
+}
