@@ -67,3 +67,15 @@ def test_search_compat_handles_old_and_new_mem0_signatures_and_result_shapes():
         def search(self, q, user_id=None, limit=None):
             assert user_id == "u"; return [{"memory": "a"}, {"text": "b"}]
     assert result_texts(search_compat(OldKw(), "q", "u", 5)) == ["a", "b"]
+
+
+def test_meter_can_force_a_context_size_on_every_call():
+    seen = []
+    class Client:
+        def chat(self, *a, **k): seen.append(k.get("options")); return {"prompt_eval_count": 5, "eval_count": 1}
+    fake = types.SimpleNamespace(Client=Client)
+    m = Meter(); m.install(fake, num_ctx=12288)
+    Client().chat(model="x", messages=[{"role": "user", "content": "hi"}], options={"temperature": 0.0})
+    Client().chat(model="x", messages=[{"role": "user", "content": "hi"}])
+    assert seen[0] == {"temperature": 0.0, "num_ctx": 12288} and seen[1] == {"num_ctx": 12288}
+    assert m.calls[0]["options"]["num_ctx"] == 12288

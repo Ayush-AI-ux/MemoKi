@@ -30,12 +30,14 @@ class Meter:
     def __init__(self):
         self.calls = []
 
-    def install(self, ollama_module=None):
+    def install(self, ollama_module=None, num_ctx=None):
         """Patch ollama.Client.chat (the path Mem0's Ollama provider uses) so every call is recorded."""
         if ollama_module is None:
             import ollama as ollama_module
         orig, meter = ollama_module.Client.chat, self
         def chat(self_, *a, **k):
+            if num_ctx:                                   # Mem0 sets no context size: force one on every call
+                k["options"] = {**(dict(k["options"]) if k.get("options") else {}), "num_ctx": num_ctx}
             t0 = time.perf_counter()
             r = orig(self_, *a, **k)
             msgs = k.get("messages") if k.get("messages") is not None else (a[1] if len(a) > 1 else None)

@@ -22,6 +22,7 @@ def main():
     ap.add_argument("--max-queries", type=int, default=10)
     ap.add_argument("--out", default="results/mem0_spike.json")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--num-ctx", type=int, default=None, help="context window to force on every Ollama call (Mem0's prompt is about 9,000 tokens; try 12288)")
     ap.add_argument("--skip-add", action="store_true", help="reuse the memories already stored by a previous run (saves the ingestion time)")
     a = ap.parse_args()
     sl = load_slice(a.locomo, a.conv, a.sessions)
@@ -32,7 +33,9 @@ def main():
     if a.dry_run:
         print("dry run only: nothing was sent to Mem0 or Ollama"); return
 
-    meter = Meter(); meter.install()
+    meter = Meter(); meter.install(num_ctx=a.num_ctx)
+    if a.num_ctx:
+        print(f"forcing num_ctx={a.num_ctx} on every Ollama call")
     from mem0 import Memory
     qdir = Path("data/cache/mem0_qdrant")
     if not a.skip_add:
@@ -57,6 +60,8 @@ def main():
         st["chars_sent"] = sum(c["chars"] for c in sent); st["options"] = sent[0]["options"] if sent else {}
         print(f"  add {i}/{len(batches)} (session {s['n']}, {len(msgs)} turns): {st['calls']} LLM calls, "
               f"{st['prompt_tokens']} prompt + {st['output_tokens']} output tokens, {st['wall']:.0f} s")
+        if st["prompt_tokens"] < 0.6 * st["chars_sent"] / 4:
+            print(f"     WARNING: the model processed only {st['prompt_tokens']} tokens of about {st['chars_sent']/4:.0f} sent: the prompt was TRUNCATED (use --num-ctx)")
         print(f"     sent to the model: {st['chars_sent']} characters (about {st['chars_sent']/4:.0f} tokens by chars/4) | options passed: {st['options']}")
     ingest_wall = time.perf_counter() - t_all
     tot = {k: sum(x[k] for x in adds) for k in ("calls", "prompt_tokens", "output_tokens", "wall")}
