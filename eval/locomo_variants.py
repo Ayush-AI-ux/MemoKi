@@ -40,7 +40,8 @@ def main(encode256=None, encode512=None, locomo=None, argv=None):
     e512 = encode512 or Embedder(model, 512).encode
     data = json.load(open(locomo or path(cfg, "locomo"), encoding="utf-8"))
     names = ["whole session, 256 tokens (current)", "whole session, 512 tokens",
-             f"{a.window}-turn windows, best window per session", f"{a.window}-turn windows, matched windows only"]
+             f"{a.window}-turn windows, best window per session", f"{a.window}-turn windows, matched windows only",
+             f"mean of {a.window}-turn windows as the session vector"]
     hit = {n: {k: [] for k in KS} for n in names}; tok = {n: {k: [] for k in KS} for n in names}
     chance = {k: [] for k in KS}; n_q = 0
     for entry in data:
@@ -55,6 +56,8 @@ def main(encode256=None, encode512=None, locomo=None, argv=None):
             for i in range(0, len(s), a.window):
                 wins.append("\n".join(s[i:i + a.window])); owner.append(si)
         W = e256(wins); owner = np.array(owner); wtok = np.array([approx_tokens(w) for w in wins])
+        Smean = np.stack([W[owner == si].mean(0) for si in range(len(sessions))])
+        Smean = Smean / np.linalg.norm(Smean, axis=1, keepdims=True)
         Q = e256([x["q"] for x in qs]); Q512 = e512([x["q"] for x in qs])
         for x, q, q5 in zip(qs, Q, Q512):
             n_q += 1
@@ -62,8 +65,9 @@ def main(encode256=None, encode512=None, locomo=None, argv=None):
             wsim = W @ q
             best = np.array([wsim[owner == si].max() for si in range(len(sessions))])
             rank_c = np.argsort(-best, kind="stable"); rank_w = np.argsort(-wsim, kind="stable")
+            rank_m = np.argsort(-(Smean @ q), kind="stable")
             for k in KS:
-                for nm, rk in ((names[0], rank_a), (names[1], rank_b), (names[2], rank_c)):
+                for nm, rk in ((names[0], rank_a), (names[1], rank_b), (names[2], rank_c), (names[4], rank_m)):
                     top = rk[:k]
                     hit[nm][k].append(any(t in x["ev"] for t in top)); tok[nm][k].append(sum(stok[t] for t in top))
                 tw = rank_w[:k]

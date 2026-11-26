@@ -31,3 +31,4 @@ def test_main_runs_and_a_word_matching_encoder_finds_the_evidence(tmp_path, caps
     out = capsys.readouterr().out
     assert "chance (random ranking" in out and "matched windows only" in out
     assert r["n_q"] == 2 and np.mean(r["hit"][r["names"][2]][1]) == 1.0 and np.mean(r["hit"][r["names"][3]][1]) == 1.0
+    assert "mean of 4-turn windows as the session vector" in out and np.mean(r["hit"][r["names"][4]][1]) == 1.0
